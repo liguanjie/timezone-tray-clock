@@ -1,0 +1,21 @@
+# Build outputs
+bin/
+obj/
+
+# Local .NET / NuGet caches
+.dotnet/
+.nuget/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# IDE folders
+.vs/
+.vscode/
+
+# OS files
+Thumbs.db
+Desktop.ini
