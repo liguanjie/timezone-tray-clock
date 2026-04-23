@@ -1,44 +1,137 @@
-using System.Runtime.InteropServices;
+using System;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using System.Windows.Interop;
+using System.Windows.Media.Imaging;
+using System.Windows.Controls;
+using H.NotifyIcon;
+using Microsoft.Win32;
 
 namespace TimezoneTrayClock;
 
 public partial class MainWindow : Window
 {
-    // 默认显示上海时区。如需替换成别的时区，改成对应的 Windows 时区 ID 即可。
-    // 例如："Tokyo Standard Time"、"Pacific Standard Time"。
     private const string TargetTimeZoneId = "China Standard Time";
-
-    // 右下角定位微调参数：正数会向左、向上多留一些距离。
     private const double RightOffset = 16;
     private const double BottomOffset = 8;
-    private const int GwlExstyle = -20;
-    private const int WsExAppWindow = 0x00040000;
-    private const int WsExToolWindow = 0x00000080;
-    private static readonly IntPtr HwndTopmost = new(-1);
-    private const uint SwpNoSize = 0x0001;
-    private const uint SwpNoMove = 0x0002;
-    private const uint SwpNoActivate = 0x0010;
-    private const uint SwpShowWindow = 0x0040;
-    private const uint SwpFrameChanged = 0x0020;
 
     private readonly DispatcherTimer _timer;
     private readonly TimeZoneInfo _targetTimeZone;
+    private TaskbarIcon? _taskbarIcon;
+    private Settings _settings;
 
     public MainWindow()
     {
         InitializeComponent();
 
-        _targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById(TargetTimeZoneId);
+        _settings = Settings.Load();
+        ThemeHelper.ApplyTheme(_settings.IsAutoTheme ? ThemeHelper.IsSystemDarkTheme() : _settings.IsDarkMode);
+
+        SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
+
+        InitializeTrayIcon();
+
+        try
+        {
+            _targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById(TargetTimeZoneId);
+            ToolTip = _targetTimeZone.DisplayName;
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            _targetTimeZone = TimeZoneInfo.Local;
+            ToolTip = $"未找到时区 '{TargetTimeZoneId}'，已回退到本地时区。";
+        }
 
         _timer = new DispatcherTimer
         {
             Interval = TimeSpan.FromSeconds(1)
         };
         _timer.Tick += Timer_Tick;
+    }
+
+    private void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
+    {
+        if (_settings.IsAutoTheme && e.Category == UserPreferenceCategory.General)
+        {
+            Dispatcher.Invoke(() => ThemeHelper.ApplyTheme(ThemeHelper.IsSystemDarkTheme()));
+        }
+    }
+
+    private void InitializeTrayIcon()
+    {
+        _taskbarIcon = new TaskbarIcon
+        {
+            IconSource = new BitmapImage(new Uri("pack://application:,,,/Assets/app.ico")),
+            ToolTipText = "Timezone Tray Clock"
+        };
+        
+        _taskbarIcon.TrayMouseDoubleClick += (s, e) => 
+        {
+            if (Visibility == Visibility.Visible)
+            {
+                Visibility = Visibility.Hidden;
+                _timer.Stop();
+            }
+            else
+            {
+                Visibility = Visibility.Visible;
+                UpdateClock();
+                _timer.Start();
+                EnsureTopmost();
+            }
+        };
+
+        var contextMenu = new ContextMenu();
+
+        var autoStartItem = new MenuItem { Header = "开机自启动", IsCheckable = true, IsChecked = AutoStartHelper.IsEnabled() };
+        autoStartItem.Click += (s, e) => 
+        {
+            AutoStartHelper.SetAutoStart(autoStartItem.IsChecked);
+            _settings.IsAutoStartEnabled = autoStartItem.IsChecked;
+            _settings.Save();
+        };
+
+        var clickThroughItem = new MenuItem { Header = "锁定位置(鼠标穿透)", IsCheckable = true, IsChecked = _settings.IsClickThroughEnabled };
+        clickThroughItem.Click += (s, e) => 
+        {
+            _settings.IsClickThroughEnabled = clickThroughItem.IsChecked;
+            ApplyShellWindowStyles();
+            _settings.Save();
+        };
+
+        var themeItem = new MenuItem { Header = "主题颜色" };
+        var autoThemeItem = new MenuItem { Header = "跟随系统", IsCheckable = true, IsChecked = _settings.IsAutoTheme };
+        var forceDarkItem = new MenuItem { Header = "始终深色", IsCheckable = true, IsChecked = !_settings.IsAutoTheme && _settings.IsDarkMode };
+        var forceLightItem = new MenuItem { Header = "始终浅色", IsCheckable = true, IsChecked = !_settings.IsAutoTheme && !_settings.IsDarkMode };
+        
+        autoThemeItem.Click += (s, e) => { SetThemeMode(true, true); autoThemeItem.IsChecked = true; forceDarkItem.IsChecked = false; forceLightItem.IsChecked = false; };
+        forceDarkItem.Click += (s, e) => { SetThemeMode(false, true); autoThemeItem.IsChecked = false; forceDarkItem.IsChecked = true; forceLightItem.IsChecked = false; };
+        forceLightItem.Click += (s, e) => { SetThemeMode(false, false); autoThemeItem.IsChecked = false; forceDarkItem.IsChecked = false; forceLightItem.IsChecked = true; };
+        
+        themeItem.Items.Add(autoThemeItem);
+        themeItem.Items.Add(forceDarkItem);
+        themeItem.Items.Add(forceLightItem);
+
+        var exitItem = new MenuItem { Header = "退出" };
+        exitItem.Click += (s, e) => Application.Current.Shutdown();
+
+        contextMenu.Items.Add(autoStartItem);
+        contextMenu.Items.Add(clickThroughItem);
+        contextMenu.Items.Add(new Separator());
+        contextMenu.Items.Add(themeItem);
+        contextMenu.Items.Add(new Separator());
+        contextMenu.Items.Add(exitItem);
+
+        _taskbarIcon.ContextMenu = contextMenu;
+    }
+
+    private void SetThemeMode(bool isAuto, bool isDark)
+    {
+        _settings.IsAutoTheme = isAuto;
+        _settings.IsDarkMode = isDark;
+        ThemeHelper.ApplyTheme(isAuto ? ThemeHelper.IsSystemDarkTheme() : isDark);
+        _settings.Save();
     }
 
     private void Window_SourceInitialized(object? sender, EventArgs e)
@@ -60,6 +153,27 @@ public partial class MainWindow : Window
         EnsureTopmost();
     }
 
+    private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+    {
+        _settings.WindowLeft = Left;
+        _settings.WindowTop = Top;
+        _settings.Save();
+
+        _timer.Stop();
+        _timer.Tick -= Timer_Tick;
+        SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
+        
+        _taskbarIcon?.Dispose();
+    }
+
+    private void Window_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.System && e.SystemKey == Key.F4)
+        {
+            e.Handled = true;
+        }
+    }
+
     private void Timer_Tick(object? sender, EventArgs e)
     {
         UpdateClock();
@@ -76,27 +190,61 @@ public partial class MainWindow : Window
     {
         UpdateLayout();
 
+        if (_settings.WindowLeft.HasValue && _settings.WindowTop.HasValue)
+        {
+            var left = _settings.WindowLeft.Value;
+            var top = _settings.WindowTop.Value;
+            
+            var rect = new Rect(left, top, ActualWidth, ActualHeight);
+            var virtualScreen = new Rect(
+                SystemParameters.VirtualScreenLeft,
+                SystemParameters.VirtualScreenTop,
+                SystemParameters.VirtualScreenWidth,
+                SystemParameters.VirtualScreenHeight);
+                
+            if (virtualScreen.IntersectsWith(rect))
+            {
+                Left = left;
+                Top = top;
+                return;
+            }
+        }
+
         var workArea = SystemParameters.WorkArea;
         Left = workArea.Right - ActualWidth - RightOffset;
         Top = workArea.Bottom - ActualHeight - BottomOffset;
     }
 
+    protected override void OnLocationChanged(EventArgs e)
+    {
+        base.OnLocationChanged(e);
+        if (IsLoaded)
+        {
+            _settings.WindowLeft = Left;
+            _settings.WindowTop = Top;
+        }
+    }
+
     private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ButtonState == MouseButtonState.Pressed)
+        if (e.ButtonState == MouseButtonState.Pressed && !_settings.IsClickThroughEnabled)
         {
             DragMove();
+            _settings.Save();
         }
     }
 
     private void EnsureTopmost()
     {
+        if (Visibility != Visibility.Visible) return;
+
         Topmost = true;
 
         var handle = new WindowInteropHelper(this).Handle;
         if (handle != IntPtr.Zero)
         {
-            SetWindowPos(handle, HwndTopmost, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate | SwpShowWindow);
+            NativeMethods.SetWindowPos(handle, NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, 
+                NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
         }
     }
 
@@ -108,26 +256,20 @@ public partial class MainWindow : Window
             return;
         }
 
-        var exStyle = GetWindowLong(handle, GwlExstyle);
-        exStyle |= WsExAppWindow;
-        exStyle |= WsExToolWindow;
-        SetWindowLong(handle, GwlExstyle, exStyle);
-        SetWindowPos(handle, IntPtr.Zero, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate | SwpFrameChanged);
+        var exStyle = NativeMethods.GetWindowLongPtr(handle, NativeMethods.GWL_EXSTYLE).ToInt32();
+        exStyle |= NativeMethods.WS_EX_TOOLWINDOW;
+        
+        if (_settings.IsClickThroughEnabled)
+        {
+            exStyle |= NativeMethods.WS_EX_TRANSPARENT;
+        }
+        else
+        {
+            exStyle &= ~NativeMethods.WS_EX_TRANSPARENT;
+        }
+
+        NativeMethods.SetWindowLongPtr(handle, NativeMethods.GWL_EXSTYLE, new IntPtr(exStyle));
+        NativeMethods.SetWindowPos(handle, IntPtr.Zero, 0, 0, 0, 0, 
+            NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_FRAMECHANGED);
     }
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool SetWindowPos(
-        IntPtr hWnd,
-        IntPtr hWndInsertAfter,
-        int x,
-        int y,
-        int cx,
-        int cy,
-        uint uFlags);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 }

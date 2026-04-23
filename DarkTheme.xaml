@@ -1,0 +1,11 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Color x:Key="BgGradientStart">#2D2D2D</Color>
+    <Color x:Key="BgGradientEnd">#1E1E1E</Color>
+    <SolidColorBrush x:Key="TimeTextBrush" Color="#E8E8E8" />
+    <SolidColorBrush x:Key="DateTextBrush" Color="#8A8A8A" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#20FFFFFF" />
+    <SolidColorBrush x:Key="InnerBorderBg" Color="#10FFFFFF" />
+    <SolidColorBrush x:Key="InnerBorderBrush" Color="#0AFFFFFF" />
+    <Color x:Key="ShadowColor">#120F0F0F</Color>
+</ResourceDictionary>
