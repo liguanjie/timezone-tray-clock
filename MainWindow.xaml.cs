@@ -124,6 +124,7 @@ public partial class MainWindow : Window
         contextMenu.Items.Add(exitItem);
 
         _taskbarIcon.ContextMenu = contextMenu;
+        _taskbarIcon.ForceCreate(false);
     }
 
     private void SetThemeMode(bool isAuto, bool isDark)
