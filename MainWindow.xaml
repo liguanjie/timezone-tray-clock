@@ -15,12 +15,16 @@
         Activated="Window_Activated"
         Closing="Window_Closing"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        MouseWheel="Window_MouseWheel"
         KeyDown="Window_KeyDown">
     <Border CornerRadius="11"
             BorderBrush="{DynamicResource BorderBrush}"
             BorderThickness="1"
             SnapsToDevicePixels="True"
             Padding="10,6">
+        <Border.LayoutTransform>
+            <ScaleTransform x:Name="RootScaleTransform" ScaleX="1" ScaleY="1" />
+        </Border.LayoutTransform>
         <Border.Background>
             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                 <GradientStop Color="{DynamicResource BgGradientStart}" Offset="0" />
@@ -51,7 +55,7 @@
                            Text="22:52:03"
                            Foreground="{DynamicResource TimeTextBrush}"
                            FontFamily="Segoe UI"
-                           FontSize="13"
+                           FontSize="14"
                            FontWeight="SemiBold"
                            Typography.NumeralAlignment="Tabular"
                            TextOptions.TextFormattingMode="Display"
@@ -63,7 +67,7 @@
                            Text="2026/4/22"
                            Foreground="{DynamicResource DateTextBrush}"
                            FontFamily="Segoe UI"
-                           FontSize="9"
+                           FontSize="12"
                            FontWeight="Normal"
                            Typography.NumeralAlignment="Tabular"
                            TextOptions.TextFormattingMode="Display"

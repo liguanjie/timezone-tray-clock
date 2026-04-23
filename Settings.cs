@@ -12,6 +12,7 @@ public class Settings
     public bool IsAutoTheme { get; set; } = true;
     public bool IsDarkMode { get; set; } = true;
     public bool IsAutoStartEnabled { get; set; } = false;
+    public double Scale { get; set; } = 1.0;
 
     private static readonly string AppDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimezoneTrayClock");
     private static readonly string SettingsFile = Path.Combine(AppDataFolder, "settings.json");

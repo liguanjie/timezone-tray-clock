@@ -26,6 +26,7 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         _settings = Settings.Load();
+        DataContext = _settings;
         ThemeHelper.ApplyTheme(_settings.IsAutoTheme ? ThemeHelper.IsSystemDarkTheme() : _settings.IsDarkMode);
 
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
@@ -113,6 +114,22 @@ public partial class MainWindow : Window
         themeItem.Items.Add(forceDarkItem);
         themeItem.Items.Add(forceLightItem);
 
+        var scaleItem = new MenuItem { Header = "缩放大小(Ctrl+滚轮)" };
+        var scaleSmallItem = new MenuItem { Header = "小 (85%)" };
+        var scaleDefaultItem = new MenuItem { Header = "默认 (100%)" };
+        var scaleLargeItem = new MenuItem { Header = "大 (125%)" };
+        var scaleExtraLargeItem = new MenuItem { Header = "特大 (150%)" };
+        
+        scaleSmallItem.Click += (s, e) => SetScale(0.85);
+        scaleDefaultItem.Click += (s, e) => SetScale(1.0);
+        scaleLargeItem.Click += (s, e) => SetScale(1.25);
+        scaleExtraLargeItem.Click += (s, e) => SetScale(1.5);
+        
+        scaleItem.Items.Add(scaleSmallItem);
+        scaleItem.Items.Add(scaleDefaultItem);
+        scaleItem.Items.Add(scaleLargeItem);
+        scaleItem.Items.Add(scaleExtraLargeItem);
+
         var exitItem = new MenuItem { Header = "退出" };
         exitItem.Click += (s, e) => Application.Current.Shutdown();
 
@@ -120,6 +137,7 @@ public partial class MainWindow : Window
         contextMenu.Items.Add(clickThroughItem);
         contextMenu.Items.Add(new Separator());
         contextMenu.Items.Add(themeItem);
+        contextMenu.Items.Add(scaleItem);
         contextMenu.Items.Add(new Separator());
         contextMenu.Items.Add(exitItem);
 
@@ -135,6 +153,21 @@ public partial class MainWindow : Window
         _settings.Save();
     }
 
+    private void SetScale(double scale)
+    {
+        _settings.Scale = scale;
+        RootScaleTransform.ScaleX = scale;
+        RootScaleTransform.ScaleY = scale;
+        _settings.Save();
+        
+        // Wait for layout to update and then ensure it fits on screen
+        Dispatcher.InvokeAsync(() => 
+        {
+            UpdateLayout();
+            EnsureWindowInBounds();
+        }, DispatcherPriority.ContextIdle);
+    }
+
     private void Window_SourceInitialized(object? sender, EventArgs e)
     {
         ApplyShellWindowStyles();
@@ -143,6 +176,8 @@ public partial class MainWindow : Window
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
+        RootScaleTransform.ScaleX = _settings.Scale;
+        RootScaleTransform.ScaleY = _settings.Scale;
         UpdateClock();
         PositionToBottomRight();
         EnsureTopmost();
@@ -178,6 +213,7 @@ public partial class MainWindow : Window
     private void Timer_Tick(object? sender, EventArgs e)
     {
         UpdateClock();
+        EnsureTopmost();
     }
 
     private void UpdateClock()
@@ -207,6 +243,7 @@ public partial class MainWindow : Window
             {
                 Left = left;
                 Top = top;
+                EnsureWindowInBounds();
                 return;
             }
         }
@@ -214,6 +251,19 @@ public partial class MainWindow : Window
         var workArea = SystemParameters.WorkArea;
         Left = workArea.Right - ActualWidth - RightOffset;
         Top = workArea.Bottom - ActualHeight - BottomOffset;
+    }
+
+    private void EnsureWindowInBounds()
+    {
+        var workArea = SystemParameters.WorkArea;
+        if (Left + ActualWidth > workArea.Right)
+            Left = workArea.Right - ActualWidth;
+        if (Top + ActualHeight > workArea.Bottom)
+            Top = workArea.Bottom - ActualHeight;
+        if (Left < workArea.Left)
+            Left = workArea.Left;
+        if (Top < workArea.Top)
+            Top = workArea.Top;
     }
 
     protected override void OnLocationChanged(EventArgs e)
@@ -232,6 +282,17 @@ public partial class MainWindow : Window
         {
             DragMove();
             _settings.Save();
+        }
+    }
+
+    private void Window_MouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (Keyboard.Modifiers == ModifierKeys.Control && !_settings.IsClickThroughEnabled)
+        {
+            double newScale = _settings.Scale + (e.Delta > 0 ? 0.1 : -0.1);
+            if (newScale < 0.5) newScale = 0.5;
+            if (newScale > 3.0) newScale = 3.0;
+            SetScale(Math.Round(newScale, 1));
         }
     }
 
