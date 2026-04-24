@@ -18,8 +18,8 @@ echo Cleaning old build files...
 if exist "bin\Release" rmdir /s /q "bin\Release"
 
 echo.
-echo Packaging as a self-contained single file (compression enabled)...
-%DOTNET_CMD% publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true
+echo Packaging as a single-file executable (all DLLs embedded)...
+%DOTNET_CMD% publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none
 
 if %errorlevel% neq 0 (
     echo.
