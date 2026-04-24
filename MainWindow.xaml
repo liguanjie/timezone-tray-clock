@@ -17,62 +17,51 @@
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
         MouseWheel="Window_MouseWheel"
         KeyDown="Window_KeyDown">
-    <Border CornerRadius="11"
+    <Border x:Name="RootBorder"
+            CornerRadius="10"
             BorderBrush="{DynamicResource BorderBrush}"
             BorderThickness="1"
             SnapsToDevicePixels="True"
-            Padding="10,6">
+            Padding="10,5">
         <Border.LayoutTransform>
-            <ScaleTransform x:Name="RootScaleTransform" ScaleX="1" ScaleY="1" />
+            <ScaleTransform x:Name="RootScaleTransform" ScaleX="{Binding Settings.Scale}" ScaleY="{Binding Settings.Scale}" />
         </Border.LayoutTransform>
         <Border.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                <GradientStop Color="{DynamicResource BgGradientStart}" Offset="0" />
-                <GradientStop Color="{DynamicResource BgGradientEnd}" Offset="1" />
-            </LinearGradientBrush>
+            <Binding Path="BackgroundBrush" />
         </Border.Background>
         <Border.Effect>
-            <DropShadowEffect BlurRadius="14"
-                              ShadowDepth="2"
+            <DropShadowEffect BlurRadius="6"
+                              ShadowDepth="1"
+                              Direction="270"
                               Color="{DynamicResource ShadowColor}"
-                              Opacity="1" />
+                              Opacity="0.4" />
         </Border.Effect>
 
-        <Grid Background="Transparent">
-            <Border Margin="5"
-                    CornerRadius="8"
-                    Background="{DynamicResource InnerBorderBg}"
-                    BorderBrush="{DynamicResource InnerBorderBrush}"
-                    BorderThickness="1" />
-
-            <StackPanel MinWidth="78"
-                        MinHeight="30"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center">
-                <TextBlock x:Name="TimeTextBlock"
-                           HorizontalAlignment="Center"
-                           TextAlignment="Center"
-                           Text="22:52:03"
-                           Foreground="{DynamicResource TimeTextBrush}"
-                           FontFamily="Segoe UI"
-                           FontSize="14"
-                           FontWeight="SemiBold"
-                           Typography.NumeralAlignment="Tabular"
-                           TextOptions.TextFormattingMode="Display"
-                           TextOptions.TextRenderingMode="ClearType" />
-                <TextBlock x:Name="DateTextBlock"
-                           Margin="0,1,0,0"
-                           HorizontalAlignment="Center"
-                           TextAlignment="Center"
-                           Text="2026/4/22"
-                           Foreground="{DynamicResource DateTextBrush}"
-                           FontFamily="Segoe UI"
-                           FontSize="12"
-                           FontWeight="Normal"
-                           Typography.NumeralAlignment="Tabular"
-                           TextOptions.TextFormattingMode="Display"
-                           TextOptions.TextRenderingMode="ClearType" />
-            </StackPanel>
-        </Grid>
+        <StackPanel HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+            <TextBlock x:Name="TimeTextBlock"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"
+                       Text="{Binding TimeText}"
+                       Foreground="{DynamicResource TimeTextBrush}"
+                       FontFamily="Segoe UI Variable Display, Segoe UI"
+                       FontSize="14"
+                       FontWeight="Normal"
+                       Typography.NumeralAlignment="Tabular"
+                       TextOptions.TextFormattingMode="Display"
+                       TextOptions.TextRenderingMode="ClearType" />
+            <TextBlock x:Name="DateTextBlock"
+                       Margin="0,-2,0,0"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"
+                       Text="{Binding DateText}"
+                       Foreground="{DynamicResource DateTextBrush}"
+                       FontFamily="Segoe UI Variable Text, Segoe UI"
+                       FontSize="11"
+                       FontWeight="Normal"
+                       Typography.NumeralAlignment="Tabular"
+                       TextOptions.TextFormattingMode="Display"
+                       TextOptions.TextRenderingMode="ClearType" />
+        </StackPanel>
     </Border>
 </Window>

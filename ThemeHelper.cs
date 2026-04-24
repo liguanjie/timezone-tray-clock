@@ -34,7 +34,10 @@ public static class ThemeHelper
                 return false;
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to read system theme: {ex.Message}");
+        }
         return true;
     }
 }

@@ -49,7 +49,43 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 - **坚不可摧的持久化层**：采用 Windows `NTFS` 原子级写入机制 (`.tmp` + Replace) 进行 JSON 配置的保存。就算在修改设置的瞬间意外断电或死机，你的偏好配置也不会产生丝毫损坏。
 - **动态防丢坐标校正**：拥有完善的虚拟屏幕 (`VirtualScreen`) 边界判定。如果你将时钟拖入副屏，而在拔掉副屏后重启程序，时钟会自动瞬移回主屏幕安全区，彻底杜绝“屏幕外幽灵窗口”问题。
 - **无副作用防误杀**：全面接管 `OnKeyDown` 级别的按键拦截，防止用户随手按下 `Alt + F4` 误杀程序，同时也保证了 Windows 操作系统的正常关机流程不受任何阻碍。
-- **始终位于任务栏之上**：通过高频刷新的 `EnsureTopmost` 调用，即使面对同样拥有最顶层权限的 Windows 任务栏，时钟依然能保证自己不会被盖住。
+- **始终位于任务栏之上**：通过低频 `EnsureTopmost` 定时校验（每 ~5 秒），即使面对同样拥有最顶层权限的 Windows 任务栏，时钟依然能保证自己不会被盖住，同时避免不必要的系统调用开销。
+
+---
+
+## 📋 更新日志
+
+### v0.0.2 — 2026/4/25 架构重构 & UI 打磨
+
+**🏗 架构重构 (MVVM)**
+- 引入 `ObservableObject` 基类，统一 `INotifyPropertyChanged` 实现
+- 新增 `MainViewModel`，将定时器逻辑和业务数据从 View 中完全剥离
+- `Settings` 继承 `ObservableObject`，所有属性支持数据绑定自动通知
+- XAML 中全面使用 `{Binding}` 替代手动赋值
+
+**🎨 新功能**
+- **自定义背景颜色**：右键菜单新增「背景颜色」子菜单，提供 7 种预设色（默认蓝、淡紫、薄荷绿、暖米、浅灰、纯白、烟白），即时生效并自动保存
+- **打包脚本**：新增 `build.bat` 一键打包脚本，自动检测本地/全局 .NET SDK，支持压缩发布
+- 缩放大小和背景颜色菜单均显示当前选中项的 ✓ 勾选标记
+
+**🔧 Code Review 修复（两轮共 18 项）**
+- 修复 `Mutex` 泄漏：`App.OnExit` 中正确释放
+- 资源清理从 `Window_Closing` 移至 `OnClosed`，避免取消关闭时的时序问题
+- `EnsureTopmost` 从每 500ms 降为每 ~5s 调用，减少 P/Invoke 开销
+- `InitializeTrayIcon` 从 80 行大方法拆分为 7 个独立的 `CreateXxxMenuItem()` 方法
+- `BackgroundBrush` 使用缓存 + `Freeze()` 冻结，避免每次绑定访问重复创建对象
+- `DragMove()` 添加 `try-catch` 防止触摸屏误触崩溃
+- `NativeMethods` 移除 32 位死代码分支和未使用的 `SWP_SHOWWINDOW` 常量
+- 所有 `catch { }` 空捕获替换为 `Debug.WriteLine` 日志输出
+- `_viewModel` 添加 `readonly` 修饰符
+- 清理主题文件中不再使用的 `BgGradient*` 和 `InnerBorder*` 资源
+- 菜单勾选状态改用 `SubmenuOpened` 事件刷新，确保 Ctrl+滚轮缩放后状态同步
+
+**🎨 UI 优化**
+- 移除冗余的内边框层，更干净的视觉层次
+- 字体升级为 `Segoe UI Variable`（Win11 原生字体，向下兼容 Segoe UI）
+- 阴影参数优化（`BlurRadius: 6, ShadowDepth: 1`），消除圆角溢出伪影
+- 浅色主题阴影减淡，深色主题改用靛蓝渐变
 
 ---
 
